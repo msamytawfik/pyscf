@@ -225,7 +225,56 @@ def _lbfgs_direction(g_orb, h_diag, history):
     return -z
 
 
-def _add_history(history, step, g0, g1, max_space, min_curvature):
+def _pack_uhf(dx, mo_occ):
+    occidxa = mo_occ[0] > 0
+    occidxb = mo_occ[1] > 0
+    viridxa = ~occidxa
+    viridxb = ~occidxb
+    uniq = numpy.array((viridxa[:,None] & occidxa,
+                        viridxb[:,None] & occidxb))
+    return dx[uniq]
+
+
+def _unpack_uhf(dx, mo_occ):
+    occidxa = mo_occ[0] > 0
+    occidxb = mo_occ[1] > 0
+    viridxa = ~occidxa
+    viridxb = ~occidxb
+    nmo = len(occidxa)
+    x = numpy.zeros((2,nmo,nmo), dtype=dx.dtype)
+    uniq = numpy.array((viridxa[:,None] & occidxa,
+                        viridxb[:,None] & occidxb))
+    x[uniq] = dx
+    return x - x.conj().transpose(0,2,1)
+
+
+def _is_uhf_mo(mo_coeff):
+    return (isinstance(mo_coeff, (tuple, list)) or
+            isinstance(mo_coeff, numpy.ndarray) and mo_coeff.ndim == 3)
+
+
+def _orbital_transform(mo0, mo1, s1e):
+    if _is_uhf_mo(mo0):
+        return numpy.asarray((mo0[0].conj().T.dot(s1e).dot(mo1[0]),
+                              mo0[1].conj().T.dot(s1e).dot(mo1[1])))
+    return mo0.conj().T.dot(s1e).dot(mo1)
+
+
+def _transport_vec(dx, mo_occ, u):
+    if isinstance(u, numpy.ndarray) and u.ndim == 3:
+        x = _unpack_uhf(dx, mo_occ)
+        x = numpy.asarray((u[0].conj().T.dot(x[0]).dot(u[0]),
+                           u[1].conj().T.dot(x[1]).dot(u[1])))
+        return _pack_uhf(x, mo_occ)
+
+    x = hf.unpack_uniq_var(dx, mo_occ)
+    x = u.conj().T.dot(x).dot(u)
+    return hf.pack_uniq_var(x, mo_occ)
+
+
+def _add_history(history, step, g0, g1, mo_occ, u, max_space, min_curvature):
+    step = _transport_vec(step, mo_occ, u)
+    g0 = _transport_vec(g0, mo_occ, u)
     y = g1 - g0
     sy = _dot(step, y)
     if sy > min_curvature * max(1., numpy.linalg.norm(step) * numpy.linalg.norm(y)):
@@ -360,11 +409,15 @@ def kernel(mf, mo_coeff=None, mo_occ=None, dm=None,
             log.warn('GDM line search failed to find a downhill step')
             break
 
+        mo0 = mo_coeff
         e_tot, mo_energy, mo_coeff, dm, vhf, fock = out
+        if mf.gdm_pcanonicalization:
+            mo_energy, mo_coeff = mf._scf.canonicalize(mo_coeff, mo_occ, fock)
+        u = _orbital_transform(mo0, mo_coeff, s1e)
         g1, h_diag1 = mf.gen_g_hdiag(mo_coeff, mo_occ, fock, h1e)
         norm_gorb = _norm_gorb(g1)
-        _add_history(history, accepted_step, g_orb, g1, mf.gdm_space,
-                     mf.gdm_min_curvature)
+        _add_history(history, accepted_step, g_orb, g1, mo_occ, u,
+                     mf.gdm_space, mf.gdm_min_curvature)
 
         log.info('cycle= %d E= %.15g  delta_E= %g  |g|= %g  |step|= %g',
                  cycle+1, e_tot, e_tot-last_hf_e, norm_gorb,
@@ -425,11 +478,13 @@ class _GDM_SCF:
     gdm_hdiag_floor = getattr(__config__, 'soscf_gdm_GDM_hdiag_floor', 1e-4)
     gdm_min_curvature = getattr(__config__, 'soscf_gdm_GDM_min_curvature', 1e-10)
     gdm_step_tol = getattr(__config__, 'soscf_gdm_GDM_step_tol', 1e-12)
+    gdm_pcanonicalization = getattr(
+        __config__, 'soscf_gdm_GDM_pcanonicalization', True)
 
     _keys = {
         'gdm_space', 'max_stepsize', 'canonicalization', 'gdm_line_search',
         'gdm_line_search_max_cycle', 'gdm_armijo', 'gdm_hdiag_floor',
-        'gdm_min_curvature', 'gdm_step_tol',
+        'gdm_min_curvature', 'gdm_step_tol', 'gdm_pcanonicalization',
     }
 
     def __init__(self, mf):
@@ -464,6 +519,7 @@ class _GDM_SCF:
                  self.gdm_line_search_max_cycle)
         log.info('gdm_armijo = %g', self.gdm_armijo)
         log.info('gdm_hdiag_floor = %g', self.gdm_hdiag_floor)
+        log.info('gdm_pcanonicalization = %s', self.gdm_pcanonicalization)
         log.info('canonicalization = %s', self.canonicalization)
         log.info('max_memory %d MB (current use %d MB)',
                  self.max_memory, lib.current_memory()[0])
