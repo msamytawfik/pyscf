@@ -208,6 +208,10 @@ def newton(mf):
     from pyscf.soscf import newton_ah
     return newton_ah.newton(mf)
 
+def gdm(mf):
+    from pyscf.soscf import gdm as gdm_solver
+    return gdm_solver.gdm(mf)
+
 fast_newton = addons.fast_newton
 
 def KS(mol, *args, **kwargs):

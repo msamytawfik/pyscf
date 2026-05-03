@@ -2251,6 +2251,18 @@ This is the Gaussian fit version as described in doi:10.1063/5.0004046.''')
         from pyscf.soscf import newton_ah
         return newton_ah.newton(self)
 
+    def gdm(self):
+        '''Create a GDM object based on the mean-field object'''
+        from pyscf.soscf import gdm
+        return gdm.gdm(self)
+
+    def remove_gdm(self):
+        '''Remove the GDM decorator'''
+        from pyscf.soscf import gdm
+        if not isinstance(self, gdm._GDM_SCF):
+            return self
+        return self.undo_gdm()
+
     def remove_soscf(self):
         '''Remove the SOSCF decorator'''
         from pyscf.soscf import newton_ah

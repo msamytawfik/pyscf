@@ -6,13 +6,18 @@ Decoration pipe
 
 SCF
 ---
-There are three decoration function for Hartree-Fock class
-:func:`density_fit`, :func:`sfx2c`, :func:`newton` to apply density
-fitting, scalar relativistic correction and second order SCF.
-The different ordering of the three decoration operations have different
+There are four decoration functions for Hartree-Fock class
+:func:`density_fit`, :func:`sfx2c`, :func:`newton`, :func:`gdm` to apply density
+fitting, scalar relativistic correction, second order SCF, and geometric direct
+minimization SCF.
+The different ordering of the decoration operations has different
 effects.  For example
 
 .. literalinclude:: ../../examples/scf/23-decorate_scf.py
+
+Geometric direct minimization can be enabled in the same stream style::
+
+    mf = scf.RHF(mol).gdm().run()
 
 FCI
 ---
@@ -45,4 +50,3 @@ Hamiltonian for Hartree-Fock
 and the user-defined Hamiltonian for CASSCF
 
 .. literalinclude:: ../../examples/mcscf/40-customizing_hamiltonian.py
-
