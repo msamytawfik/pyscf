@@ -212,6 +212,10 @@ def gdm(mf):
     from pyscf.soscf import gdm as gdm_solver
     return gdm_solver.gdm(mf)
 
+def diis_gdm(mf):
+    from pyscf.soscf import gdm as gdm_solver
+    return gdm_solver.diis_gdm(mf)
+
 fast_newton = addons.fast_newton
 
 def KS(mol, *args, **kwargs):

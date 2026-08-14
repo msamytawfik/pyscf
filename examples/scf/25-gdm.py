@@ -26,11 +26,25 @@ mf = scf.RHF(mol).gdm()
 energy = mf.kernel()
 print('RHF/GDM E = %.12f, ref = -76.026765672992' % energy)
 
+# Strong-Wolfe line search is the default controller.  A trust-region dogleg
+# controller is also available for objectives with noisy energy changes.
+mf = scf.RHF(mol).gdm()
+mf.gdm_step_control = 'dogleg'
+energy = mf.kernel()
+print('RHF/GDM dogleg E = %.12f' % energy)
+
 mf = scf.RKS(mol)
 mf.xc = 'pbe,pbe'
 mf = mf.gdm()
 energy = mf.kernel()
 print('RKS/GDM E = %.12f' % energy)
+
+mf = scf.RKS(mol)
+mf.xc = 'pbe,pbe'
+mf = mf.diis_gdm()
+mf.gdm_diis_max_cycle = 5
+energy = mf.kernel()
+print('RKS/DIIS-GDM E = %.12f' % energy)
 
 mol = gto.M(
     verbose = 0,
