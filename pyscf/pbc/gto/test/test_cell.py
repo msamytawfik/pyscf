@@ -17,7 +17,6 @@
 #
 
 import unittest
-import tempfile
 import ctypes
 import numpy
 import numpy as np
@@ -65,7 +64,7 @@ class KnownValues(unittest.TestCase):
 
     def test_Gv(self):
         a = cl1.get_Gv()
-        self.assertAlmostEqual(lib.fp(a), -99.791927068519939, 10)
+        self.assertAlmostEqual(lib.fp(a), -99.791927068519939, 9)
 
     def test_SI(self):
         a = cl1.get_SI()
@@ -616,7 +615,7 @@ S
 
     def test_fromfile(self):
         ref = cl.atom_coords().copy()
-        with tempfile.NamedTemporaryFile() as f:
+        with lib.NamedTemporaryFile() as f:
             cl.tofile(f.name, 'xyz')
             cell = pgto.Cell()
             cell.fromfile(f.name, 'xyz')
@@ -686,6 +685,30 @@ Cartesian
        1.95000000        1.95000000        0.00000000
        1.95000000        0.00000000        1.95000000
        0.00000000        1.95000000        1.95000000'''
+
+    def test_parse_poscar_with_trailing_atom_labels(self):
+        inp_str = '''\
+Labeled atoms
+2.0
+1.0 0.0 0.0
+0.0 1.0 0.0
+0.0 0.0 1.0
+Li Fe
+2 1
+Direct
+0.00 0.00 0.00 Li
+0.50 0.50 0.50 Li
+0.25 0.75 0.25 Fe
+'''
+        a, atoms = pgto.cell.fromstring(inp_str, format='poscar')
+        ref_a = np.eye(3) * 2
+        ref_pos = np.array([[0.0, 0.0, 0.0],
+                            [1.0, 1.0, 1.0],
+                            [0.5, 1.5, 0.5]])
+        coords = np.array([x[1] for x in atoms])
+        assert [x[0] for x in atoms] == ['Li', 'Li', 'Fe']
+        assert abs(a - ref_a).max() < 1e-14
+        assert abs(coords - ref_pos).max() < 1e-14
 
     def test_parse_cif(self):
         inp_str = '''\

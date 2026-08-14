@@ -14,7 +14,6 @@
 # limitations under the License.
 
 import unittest
-import tempfile
 import numpy
 from pyscf import gto
 from pyscf import lib
@@ -115,6 +114,8 @@ class KnownValues(unittest.TestCase):
         self.assertAlmostEqual(mf.e_tot, -1.9931564410562266, 9)
 
     def test_xcfun_nr_blyp(self):
+        if not hasattr(dft, 'xcfun'):
+            raise unittest.SkipTest('PySCF was not built with XCFun.')
         m = mol.RKS()
         m._numint.libxc = dft.xcfun
         m.xc = 'b88,lyp'
@@ -215,14 +216,14 @@ class KnownValues(unittest.TestCase):
 
     # issue 1986
     def test_init_guess_chkfile(self):
-        with tempfile.NamedTemporaryFile() as tmpf:
-            mol = gto.M(atom='He 0 0 0', basis='631g', charge=1, spin=1)
+        mol = gto.M(atom='He 0 0 0', basis='631g', charge=1, spin=1)
+        with lib.NamedTemporaryFile() as tmpf:
             mf = dft.RKS(mol)
             mf.chkfile = tmpf.name
             e1 = mf.kernel()
             mf = dft.RKS(mol)
-            mf.init_guess = 'chkfile'
             mf.chkfile = tmpf.name
+            mf.init_guess = 'chkfile'
             mf.max_cycle = 1
             e2 = mf.kernel()
             self.assertAlmostEqual(e1, e2, 9)

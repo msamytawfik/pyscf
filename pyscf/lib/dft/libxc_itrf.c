@@ -1036,15 +1036,19 @@ int LIBXC_max_deriv_order(const int nfunc, const xc_func_type *func)
         };
 
         for (i = 0; i < nfunc; i++) {
-                /* find the minimum order of all functionals */
+                /* find the highest order this functional supports, then keep
+                 * the minimum across all functionals. Iterate o>=0 to also
+                 * cover order-0 (EXC-only) functionals. */
                 const int flag = func[i].info->flags;
-                for (o = ord; o > 0; o--) {
+                int found = 0;
+                for (o = ord; o >= 0; o--) {
                         if (flag & DERIV_FLAGS_TABLE[o]) {
                                 ord = o;
+                                found = 1;
                                 break;
                         }
                 }
-                if (o == -1) return -1;
+                if (!found) return -1;
         }
 
         return ord;
@@ -1126,6 +1130,11 @@ void LIBXC_xc_func_set_params(const int nfn, xc_func_type *fn_obj, const double 
 #endif
                 ++func;
         }
+}
+
+int LIBXC_xc_func_find_ext_params_name(const xc_func_type *p, const char *name)
+{
+        return xc_func_find_ext_params_name(p, name);
 }
 
 xc_func_type *LIBXC_xc_func_init(const int nfn, const int *xc_ids, const int spin)

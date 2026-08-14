@@ -17,7 +17,6 @@
 
 import os
 import unittest
-import tempfile
 import numpy
 from pyscf import lib
 from pyscf import gto
@@ -73,7 +72,7 @@ class KnownValues(unittest.TestCase):
 
     def test_cderi_to_save(self):
         with open(os.devnull, 'w') as f:
-            ftmp = tempfile.NamedTemporaryFile()
+            ftmp = lib.NamedTemporaryFile()
             dfobj = df.DF(mol)
             dfobj.auxmol = df.addons.make_auxmol(mol, 'weigend')
             dfobj.verbose = 5
@@ -105,8 +104,13 @@ class KnownValues(unittest.TestCase):
         dm = numpy.random.random((2,nao,nao))
         dfobj = df.DF(mol)
         vj, vk = dfobj.get_jk(dm, hermi=0, omega=1.1)
-        self.assertAlmostEqual(lib.fp(vj), -181.5033531437091, 4)
-        self.assertAlmostEqual(lib.fp(vk), -37.78854217974532, 4)
+        # The long-range Coulomb metric of the JK-fit auxiliary basis is
+        # severely linearly dependent (condition number ~1e19) and has
+        # eigenvalues straddling the 1e-7 linear dependency threshold used by
+        # DF, so these fingerprints are only reproducible to about 1e-4 across
+        # LAPACK implementations.
+        self.assertAlmostEqual(lib.fp(vj), -181.5033531437091, 3)
+        self.assertAlmostEqual(lib.fp(vk), -37.78854217974532, 3)
 
         vj1, vk1 = scf.hf.get_jk(mol, dm, hermi=0, omega=1.1)
         self.assertAlmostEqual(abs(vj-vj1).max(), 0, 2)
@@ -132,7 +136,7 @@ class KnownValues(unittest.TestCase):
         mol = gto.M(atom = 'H 0 0 0; F 0 0 1.1', basis='ccpvdz', max_memory=10, verbose=0)
         mf = mol.RKS().density_fit()
         mf.xc = 'lda+0.5*SR_HF(0.3)'
-        with tempfile.NamedTemporaryFile() as ftmp:
+        with lib.NamedTemporaryFile() as ftmp:
             mf.with_df._cderi_to_save = ftmp.name
             mf.run()
         self.assertAlmostEqual(mf.e_tot, -103.4965622991, 6)
